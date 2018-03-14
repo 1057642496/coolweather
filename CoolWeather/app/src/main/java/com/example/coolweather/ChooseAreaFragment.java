@@ -2,10 +2,12 @@ package com.example.coolweather;
 
 import android.app.Fragment;
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.nfc.Tag;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -71,6 +73,8 @@ public class ChooseAreaFragment extends Fragment {
      */
     private int currentLevel;
 
+    private String TAG ="ChooseAreaFragment";
+
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -78,7 +82,7 @@ public class ChooseAreaFragment extends Fragment {
         titleText = (TextView) view.findViewById(R.id.title_text);
         backButton = (Button) view.findViewById(R.id.back_button);
         listView = (ListView) view.findViewById(R.id.list_view);
-        adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1, datalist);
+        adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, datalist);
         listView.setAdapter(adapter);
         return view;
     }
@@ -95,7 +99,15 @@ public class ChooseAreaFragment extends Fragment {
                 } else if (currentLevel == LEVEL_CITY) {
                     selectCity = cityList.get(position);
                     queryCounties();
+                } else if (currentLevel == LEVEL_COUNT) {
+                    String weatherId = countyList.get(position).getWeatherId();
+
+                    Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                    intent.putExtra("weather_id", weatherId);
+                    startActivity(intent);
+                    getActivity().finish();
                 }
+
             }
         });
         backButton.setOnClickListener(new View.OnClickListener() {
@@ -128,7 +140,9 @@ public class ChooseAreaFragment extends Fragment {
             listView.setSelection(0);
             currentLevel = LEVEL_PROVINCE;
         } else {
-            String address = "http://guolin.tech/api/china/" ;
+            String address = "http://guolin.tech/api/china/";
+            Log.d("MainActivity.this","这个address的值为"+address);
+
             queryFromServer(address, "province");
         }
     }
@@ -139,7 +153,7 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCities() {
         titleText.setText(selectedProvince.getProvinceName());
         backButton.setVisibility(View.VISIBLE);
-        cityList = DataSupport.where("provinceid=?", String.valueOf(selectedProvince.getId())).find(City.class);
+        cityList = DataSupport.where("provinceid = ?", String.valueOf(selectedProvince.getId())).find(City.class);
         if (cityList.size() > 0) {
             datalist.clear();
             for (City city : cityList) {
@@ -150,6 +164,8 @@ public class ChooseAreaFragment extends Fragment {
             currentLevel = LEVEL_CITY;
         } else {
             int provinceCode = selectedProvince.getProvinceCode();
+
+            Log.d("MainActivity.this","这个provinceCode的值为"+provinceCode);
             String address = "http://guolin.tech/api/china/" + provinceCode;
             queryFromServer(address, "city");
         }
@@ -157,7 +173,7 @@ public class ChooseAreaFragment extends Fragment {
 
 
     /**
-     * 查询选中省份的所有的市，优先从数据库中查询，如果没有查询到再去服务器上查询
+     * 查询选中，优先从数据库中查询，如果没有查询到再去服务器上查询
      */
     private void queryCounties() {
         titleText.setText(selectCity.getCityName());
@@ -175,7 +191,7 @@ public class ChooseAreaFragment extends Fragment {
             int provinceCode = selectedProvince.getProvinceCode();
             int cityCode = selectCity.getCityCode();
             String address = "http://guolin.tech/api/china/" + provinceCode + "/" + cityCode;
-            queryFromServer(address, "country");
+            queryFromServer(address, "county");
         }
     }
 
@@ -189,7 +205,6 @@ public class ChooseAreaFragment extends Fragment {
     private void queryFromServer(String address, final String type) {
         showProgressDialog();
         HttpUtil.sendOkHttpRequest(address, new Callback() {
-
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseText = response.body().string();
@@ -210,7 +225,7 @@ public class ChooseAreaFragment extends Fragment {
                                 queryProvinces();
                             } else if ("city".equals(type)) {
                                 queryCities();
-                            } else if ("country".equals(type)) {
+                            } else if ("county".equals(type)) {
                                 queryCounties();
                             }
                         }
@@ -243,7 +258,7 @@ public class ChooseAreaFragment extends Fragment {
         if (ProgressDialog == null) {
             ProgressDialog = new ProgressDialog(getActivity());
             ProgressDialog.setMessage("正在加载");
-            ProgressDialog.setCancelable(false);
+            ProgressDialog.setCanceledOnTouchOutside(false);
         }
         ProgressDialog.show();
     }
